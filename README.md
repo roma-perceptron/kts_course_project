@@ -1,3 +1,14 @@
+---
+
+###Рома Перцептрон
+### Email: roma.perceptron@gmail.com
+###Telegram: [@roma_perceptron](https://t.me/roma_perceptron)
+
+
+![Alt Text](bot_demo.gif)
+
+
+
 # Памятка по работе с проектом
 
 ## Начало работы с проектом

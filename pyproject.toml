@@ -14,5 +14,9 @@ exclude = '''
   | build
   | dist
   | migrations
+  | alembic
+  | etc
+  | tgbot_ex
+  | venv
 )/
 '''
