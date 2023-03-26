@@ -3,5 +3,6 @@ from kts_backend.web.app import setup_app
 
 
 if __name__ == "__main__":
-    run_app(setup_app())
-
+    run_app(
+        setup_app()
+    )

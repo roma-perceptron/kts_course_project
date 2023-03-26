@@ -2,11 +2,16 @@
 
 import asyncio
 import os
+import typing
 from asyncio import Task
 from typing import Optional
 from aiohttp import ClientSession, TCPConnector
 
 TOKEN = os.environ.get("TG_BOT_TOKEN", "")
+
+
+if typing.TYPE_CHECKING:
+    from kts_backend.web.app import Application
 
 
 class TGBot:
@@ -23,18 +28,22 @@ class TGBot:
 
 
 class Poller(TGBot):
-    def __init__(self, updates_queue: Optional[asyncio.Queue] = None):
-        super().__init__()
+    def __init__(self, app: "Application", *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.app = app
         self.is_running: bool = False
         self.poll_task: Optional[Task] = None
         self.offset: int = 0
-        self.updates_queue: Optional[asyncio.Queue] = updates_queue
+        #
+        self.app.on_startup.append(self.start)
+        # app.on_cleanup.append(self.stop)
 
-    async def start(self):
+    async def start(self, *args, **kwargs):
         self.is_running = True
         self.poll_task = asyncio.create_task(self.long_polling())
+        print(' '*3, 'app.bot.start - ok')
 
-    async def stop(self):
+    async def stop(self, *args, **kwargs):
         self.is_running = False
         await self.poll_task
 
@@ -53,6 +62,7 @@ class Poller(TGBot):
                 "updates:",
                 updates.get("ok", "FAIL"),
                 len(updates.get("result", [])),
+                updates
             )
             if updates.get("result", []):
                 self.offset = updates["result"][-1]["update_id"] + 1
@@ -60,16 +70,20 @@ class Poller(TGBot):
                 for update in updates["result"]:
                     # put each update to the queue..
                     print(" " * 3, "[P]", update)
-                    await self.updates_queue.put(update)
+                    await self.app.updates_queue.put(update)
+                    # self.app.updates_queue.put_nowait(update)
                     break
 
 
 class Sender(TGBot):
-    def __init__(self, answers_queue: Optional[asyncio.Queue] = None):
-        super().__init__()
-        self.answers_queue: Optional[asyncio.Queue] = answers_queue
+    def __init__(self, app: "Application", *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.app = app
         self.is_running: bool = False
         self.task: Optional[asyncio.Task] = None
+        #
+        app.on_startup.append(self.start)
+        # app.on_cleanup.append(self.stop)
 
     async def send_message(
         self, msg: Optional[str] = "Yeah!", chat_id: Optional[int] = None
@@ -81,17 +95,22 @@ class Sender(TGBot):
 
     async def process_answer(self):
         while True:
-            answer = await self.answers_queue.get()
+            answer = await self.app.answers_queue.get()
             print(" " * 3, "[A]", answer)
             await self.send_message(**answer)
             #
-            self.answers_queue.task_done()
+            self.app.answers_queue.task_done()
 
-    async def start(self):
+    async def start(self, *args, **kwargs):
         self.is_running = True
         self.task = asyncio.create_task(self.process_answer())
         #
-        await self.answers_queue.join()
+        await self.app.answers_queue.join()
+        print(' '*3, 'app.sender.start - ok')
+
+    async def stop(self, *args, **kwargs):
+        self.is_running = False
+        await self.task
 
 
 class Getter__DEPRECATED(TGBot):

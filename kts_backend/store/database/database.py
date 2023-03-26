@@ -15,16 +15,16 @@ if TYPE_CHECKING:
 
 
 class Database:
-    # def __init__(self, app: "Application"):
-    def __init__(self):
-        # self.app = app
+    def __init__(self, app: "Application"):
+        self.app = app
         self._engine: Optional[AsyncEngine] = None
         self._db: Optional[declarative_base] = None
         self.session: Optional[AsyncSession] = None
         self.DATABASE_URL = "postgresql+asyncpg://" + os.environ.get(
             "KTS_DB_CREDENTIALS", "USERNAME:PASSWORD@HOST:PORT/DB_NAME"
         )
-        print("DATABASE_URL:", self.DATABASE_URL)
+        self.app.on_startup.append(self.connect)
+        # print("DATABASE_URL:", self.DATABASE_URL)
 
     async def connect(self, *_: list, **__: dict) -> None:
         self._db = db
@@ -34,7 +34,7 @@ class Database:
         self.session = sessionmaker(
             bind=self._engine, expire_on_commit=False, class_=AsyncSession
         )
-        print("ok, connected!")
+        print(' '*3, 'ok database, connected!')
 
     async def disconnect(self, *_: list, **__: dict) -> None:
         pass
