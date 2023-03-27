@@ -1,5 +1,5 @@
-from kts_backend.store.database.sqlalchemy_base import db
-from kts_backend.game.dataclasses import GameDC, PlayerDC, GameScoreDC
+from store.database.sqlalchemy_base import db
+from game.dataclasses import GameDC, PlayerDC, GameScoreDC
 
 from sqlalchemy import Column, ForeignKey, Integer, VARCHAR, DateTime, func
 from sqlalchemy.orm import relationship

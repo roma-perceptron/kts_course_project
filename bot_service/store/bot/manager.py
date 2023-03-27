@@ -1,11 +1,13 @@
 import asyncio
 import json
-from asyncio import Task
-from typing import Optional
+from asyncio import Task, Queue
+from typing import Optional, TYPE_CHECKING
 from random import randint
 
-from kts_backend.store.bot.accessor import BotAccessor
+from store.bot.accessor import BotAccessor
 
+if TYPE_CHECKING:
+    from web.app import Application
 
 BOT_NAME = "@rp_kts_course_project_bot"
 FAKE_CHAT_ID = -1001938935834
@@ -63,14 +65,14 @@ def get_random_scores():
 
 class BotManager:
     def __init__(
-        self,
-        updates_queue: Optional[asyncio.Queue] = None,
-        answers_queue: Optional[asyncio.Queue] = None,
-        accessor: Optional[BotAccessor] = None,
+            self,
+            updates_queue: Optional[Queue] = None,
+            answers_queue: Optional[Queue] = None,
+            accessor: Optional[BotAccessor] = None,
     ):
         self.is_running: bool = False
-        self.updates_queue: Optional[asyncio.Queue] = updates_queue
-        self.answers_queue: Optional[asyncio.Queue] = answers_queue
+        self.updates_queue: Optional[Queue] = updates_queue or Queue()
+        self.answers_queue: Optional[Queue] = answers_queue or Queue()
         self.task: Optional[Task] = None
         self.accessor: BotAccessor = accessor
         self.BOT_COMMANDS = {
@@ -122,11 +124,15 @@ class BotManager:
             #
             self.updates_queue.task_done()
 
-    async def start(self):
+    async def start(self, _: "Application"):
         self.is_running = True
         self.task = asyncio.create_task(self.process_update())
         #
         await self.updates_queue.join()
+
+    async def stop(self, app: "Application"):
+        # TODO: Здесь описываешь процесс корректной остановки Manager
+        app.logger.warning(f"{self.__class__.__name__} НАПИШИ процесс корректной остановки Manager")
 
     async def _make_fake_game(self):
         game_id, player_ids = await self.accessor.create_game(

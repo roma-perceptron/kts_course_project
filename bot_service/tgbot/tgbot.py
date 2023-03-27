@@ -3,8 +3,11 @@
 import asyncio
 import os
 from asyncio import Task
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from aiohttp import ClientSession, TCPConnector
+
+if TYPE_CHECKING:
+    from web.app import Application
 
 TOKEN = os.environ.get("TG_BOT_TOKEN", "")
 
@@ -30,13 +33,14 @@ class Poller(TGBot):
         self.offset: int = 0
         self.updates_queue: Optional[asyncio.Queue] = updates_queue
 
-    async def start(self):
+    async def start(self, _: "Application"):
         self.is_running = True
         self.poll_task = asyncio.create_task(self.long_polling())
 
-    async def stop(self):
+    async def stop(self, app: "Application"):
         self.is_running = False
         await self.poll_task
+        app.logger.warning(f"{self.__class__.__name__} is stopped")
 
     async def long_polling(self):
         while self.is_running:
@@ -44,9 +48,9 @@ class Poller(TGBot):
 
     async def _polling(self):
         async with self.session.get(
-            self.build_query(
-                "getUpdates", {"offset": self.offset, "timeout": self.timeout}
-            )
+                self.build_query(
+                    "getUpdates", {"offset": self.offset, "timeout": self.timeout}
+                )
         ) as resp:
             updates = await resp.json()
             print(
@@ -72,10 +76,10 @@ class Sender(TGBot):
         self.task: Optional[asyncio.Task] = None
 
     async def send_message(
-        self, msg: Optional[str] = "Yeah!", chat_id: Optional[int] = None
+            self, msg: Optional[str] = "Yeah!", chat_id: Optional[int] = None
     ):
         async with self.session.get(
-            self.build_query("sendMessage", {"text": msg, "chat_id": chat_id})
+                self.build_query("sendMessage", {"text": msg, "chat_id": chat_id})
         ) as resp:
             await resp.json()
 
@@ -87,20 +91,22 @@ class Sender(TGBot):
             #
             self.answers_queue.task_done()
 
-    async def start(self):
+    async def start(self, _: "Application"):
         self.is_running = True
         self.task = asyncio.create_task(self.process_answer())
         #
         await self.answers_queue.join()
 
-
+    async def stop(self, app: "Application"):
+        # TODO: Здесь описываешь процесс корректной остановки
+        app.logger.warning(f"{self.__class__.__name__} НАПИШИ процесс корректной остановки")
 class Getter__DEPRECATED(TGBot):
     def __init__(self):
         super().__init__()
 
     async def get_members(self, chat_id: str = "-1001938935834"):
         async with self.session.get(
-            self.build_query("getChat", {"chat_id": chat_id})
+                self.build_query("getChat", {"chat_id": chat_id})
         ) as resp:
             data = await resp.json()
         return data
