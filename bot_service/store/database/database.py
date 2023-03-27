@@ -19,7 +19,9 @@ class Database(BaseAccessor):
     def _init_(self):
         self.DATABASE_URL = "postgresql+asyncpg://" + os.environ.get("KTS_DB_CREDENTIALS",
                                                                      "USERNAME:PASSWORD@HOST:5432/DB_NAME")
+
         self.logger.info(f"{self.DATABASE_URL=}")
+        self.logger.info(f"{self.app.settings.postgres.dsn}")
 
     async def connect(self, *_: list, **__: dict) -> None:
         self._db = db
