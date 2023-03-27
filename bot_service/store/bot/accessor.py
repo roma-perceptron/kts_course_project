@@ -1,8 +1,8 @@
 from sqlalchemy import select
 
-from kts_backend.store.base_accessor import BaseAccessor
+from store.base_accessor import BaseAccessor
 
-from kts_backend.game.models import GameModel, PlayerModel, GameScoreModel
+from game.models import GameModel, PlayerModel, GameScoreModel
 
 from sqlalchemy.orm import selectinload, joinedload, subqueryload
 from sqlalchemy.orm import Bundle
