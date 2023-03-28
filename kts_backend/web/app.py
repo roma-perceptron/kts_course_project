@@ -15,9 +15,8 @@ from .urls import register_urls
 from typing import Optional
 from kts_backend.store.database.database import Database
 from kts_backend.store.bot.manager import BotManager
-from kts_backend.store.bot.accessor import BotAccessor
 
-from tgbot import setup_bot
+from tgbot import setup_sender, setup_poller
 from kts_backend.store import setup_store
 
 
@@ -25,9 +24,22 @@ from kts_backend.store import setup_store
 
 
 class Application(AiohttpApplication):
-    config = None
-    store = None
-    database: Optional[Database] = None
+    def __init__(self):
+        super().__init__()
+        self.config = None
+        self.store = None
+        self.database: Optional[Database] = None
+        self.bot = None
+        self.sender = None
+        self.manager = None
+        self.updates_queue = None
+        self.answers_queue = None
+        self.on_startup.append(self.init_queues)
+
+    async def init_queues(self, *args, **kwargs):
+        self.updates_queue = asyncio.Queue()
+        self.answers_queue = asyncio.Queue()
+        print(' '*3, 'queues inited!')
 
 
 app = Application()
@@ -35,28 +47,18 @@ app = Application()
 
 async def setup_app() -> Application:
     print("start creating app..")
-    database = setup_store()
-    await database.connect()
 
-    # creating queues
-    updates_queue = asyncio.Queue()
-    answers_queue = asyncio.Queue()
+    # creating database
+    app.database = Database(app)
 
     # creating Bot's poller and sender instances
-    bot, sender = setup_bot(updates_queue, answers_queue)
+    app.bot = setup_poller(app)
+    app.sender = setup_sender(app)
 
     # creating Manager instance
-    manager = BotManager(updates_queue, answers_queue, BotAccessor(database))
+    app.manager = BotManager(app)
 
-    # starting coroutines
-    await bot.start()
-    await manager.start()
-    await sender.start()
-
+    # all coros should start via call app.on_startup in each __init__
+    print('preparing done:')
     #
-    app.database = database
-    app.bot = bot
-    app.sender = sender
-    app.manager = manager
-    # print('here are app:', type(app), app.__dict__)
     return app

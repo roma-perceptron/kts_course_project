@@ -1,10 +1,14 @@
 import asyncio
 import json
+import typing
 from asyncio import Task
 from typing import Optional
 from random import randint
 
 from kts_backend.store.bot.accessor import BotAccessor
+
+if typing.TYPE_CHECKING:
+    from kts_backend.web.app import Application
 
 
 BOT_NAME = "@rp_kts_course_project_bot"
@@ -64,20 +68,20 @@ def get_random_scores():
 class BotManager:
     def __init__(
         self,
-        updates_queue: Optional[asyncio.Queue] = None,
-        answers_queue: Optional[asyncio.Queue] = None,
-        accessor: Optional[BotAccessor] = None,
+        app: "Application",
     ):
+        self.app = app
         self.is_running: bool = False
-        self.updates_queue: Optional[asyncio.Queue] = updates_queue
-        self.answers_queue: Optional[asyncio.Queue] = answers_queue
         self.task: Optional[Task] = None
-        self.accessor: BotAccessor = accessor
+        self.accessor: BotAccessor = BotAccessor(app.database)
         self.BOT_COMMANDS = {
-            "/help": "Help! I need somebody! Not just anybody!",
+            "/help": "Help! \nI need somebody! \n(Help!) Not just anybody!",
             "/game": "Начнем новую игру как только научимся это делать!",
             "/stop": "Стоп-игра!",
         }
+        #
+        app.on_startup.append(self.start)
+        # app.on_cleanup.append(self.stop)
 
     @staticmethod
     def is_command(text):
@@ -113,20 +117,22 @@ class BotManager:
         return {"msg": msg, "chat_id": data["message"]["chat"]["id"]}
 
     async def process_update(self):
+        print('BotManager.process_update!', self.app)
         while True:
-            update = await self.updates_queue.get()
+            update = await self.app.updates_queue.get()
             print(" " * 3, "[W]", update)
             #
             answer = await self.make_echo_answer(update)
-            await self.answers_queue.put(answer)
+            await self.app.answers_queue.put(answer)
             #
-            self.updates_queue.task_done()
+            self.app.updates_queue.task_done()
 
-    async def start(self):
+    async def start(self, *_: list, **__: dict):
         self.is_running = True
         self.task = asyncio.create_task(self.process_update())
         #
-        await self.updates_queue.join()
+        await self.app.updates_queue.join()
+        print(' '*3, 'app.manager.start - ok')
 
     async def _make_fake_game(self):
         game_id, player_ids = await self.accessor.create_game(
