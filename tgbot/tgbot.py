@@ -47,7 +47,8 @@ class TGBot:
         return url
 
     async def query(self, method: str, params: Optional[dict] = dict):
-        async with self.session.get(self.build_query(method, params)) as resp:
+        query_link = self.build_query(method, params)
+        async with self.session.get(query_link) as resp:
             data = await resp.json()
             return data
 
@@ -55,6 +56,15 @@ class TGBot:
         await self.query(
             "setMyCommands", {"commands": json.dumps(BOT_COMMANDS)}
         )
+
+    # async def set_commands__sync(self, *args):
+    #     query_link = self.build_query(
+    #         "setMyCommands", {"commands": json.dumps(BOT_COMMANDS)}
+    #     )
+    #     import requests
+    #     res = requests.get(query_link)
+    #     print('res', res)
+    #     print(res.json())
 
 
 class Poller(TGBot):
@@ -66,8 +76,8 @@ class Poller(TGBot):
         self.offset: int = 0
         #
         self.app.on_startup.append(self.start)
-        self.app.on_startup.append(self.set_commands)
-        app.on_cleanup.append(self.stop)
+        # self.app.on_startup.append(self.set_commands)
+        self.app.on_cleanup.append(self.stop)
 
     async def start(self, *args, **kwargs):
         self.loop = asyncio.get_event_loop()
@@ -83,8 +93,10 @@ class Poller(TGBot):
         print(" " * 3, "app.bot.start - ok")
 
     async def stop(self, *args, **kwargs):
+        await self.session.close()
         self.is_running = False
-        await self.poll_task
+        self.poll_task.cancel()
+
 
     async def long_polling(self):
         while self.is_running:
@@ -127,8 +139,8 @@ class Sender(TGBot):
         self.is_running: bool = False
         self.task: Optional[asyncio.Task] = None
         #
-        app.on_startup.append(self.start)
-        app.on_cleanup.append(self.stop)
+        self.app.on_startup.append(self.start)
+        self.app.on_cleanup.append(self.stop)
 
     async def send_message(self, **kwargs):
         await self.query("sendMessage", kwargs)
@@ -150,8 +162,9 @@ class Sender(TGBot):
         print(" " * 3, "app.sender.start - ok")
 
     async def stop(self, *args, **kwargs):
+        await self.session.close()
         self.is_running = False
-        await self.task
+        self.task.cancel()
 
 
 class StateMachine(TGBot):

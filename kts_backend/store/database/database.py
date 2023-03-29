@@ -24,7 +24,7 @@ class Database:
             "KTS_DB_CREDENTIALS", "USERNAME:PASSWORD@HOST:PORT/DB_NAME"
         )
         self.app.on_startup.append(self.connect)
-        self.app.on_startup.append(self.disconnect)
+        self.app.on_cleanup.append(self.disconnect)
         # print("DATABASE_URL:", self.DATABASE_URL)
 
     async def connect(self, *_: list, **__: dict) -> None:
@@ -38,6 +38,5 @@ class Database:
         print(" " * 3, "ok database, connected!")
 
     async def disconnect(self, *_: list, **__: dict) -> None:
-        if self._engine:
-            await self._engine.dispose()
-            self._db = None
+        await self._engine.dispose()
+        self._db = None
