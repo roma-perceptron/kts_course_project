@@ -10,6 +10,7 @@ from kts_backend.store.bot.accessor import BotAccessor
 if typing.TYPE_CHECKING:
     from kts_backend.web.app import Application
 
+
 class Store:
     def __init__(self, app: "Application"):
         # from kts_backend.users.accessor import UserAccessor
@@ -19,4 +20,3 @@ class Store:
 
 def setup_store(app: "Application"):
     pass
-

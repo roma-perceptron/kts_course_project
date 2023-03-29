@@ -34,12 +34,16 @@ class Application(AiohttpApplication):
         self.manager = None
         self.updates_queue = None
         self.answers_queue = None
+        #
+        self.user_states = {}
+        self.current_teams = {}
+        #
         self.on_startup.append(self.init_queues)
 
     async def init_queues(self, *args, **kwargs):
         self.updates_queue = asyncio.Queue()
         self.answers_queue = asyncio.Queue()
-        print(' '*3, 'queues inited!')
+        print(" " * 3, "queues inited!")
 
 
 app = Application()
@@ -59,6 +63,6 @@ async def setup_app() -> Application:
     app.manager = BotManager(app)
 
     # all coros should start via call app.on_startup in each __init__
-    print('preparing done:')
+    print("preparing done:")
     #
     return app

@@ -22,6 +22,7 @@ class TestBot:
         # assert ЗНАЧЕНИЕ_ИЗ_КОДА == ИСТИНННОЕ_ОЖИДАЕМОЕ_ЗНАЧЕНИЕ
         assert 2 * 2 == 4
 
+
 class TestApp:
     async def test_app(self, app):
         app = await app
