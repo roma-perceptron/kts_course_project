@@ -67,7 +67,7 @@ class Poller(TGBot):
         #
         self.app.on_startup.append(self.start)
         self.app.on_startup.append(self.set_commands)
-        # app.on_cleanup.append(self.stop)
+        app.on_cleanup.append(self.stop)
 
     async def start(self, *args, **kwargs):
         self.loop = asyncio.get_event_loop()
@@ -84,9 +84,7 @@ class Poller(TGBot):
 
     async def stop(self, *args, **kwargs):
         self.is_running = False
-        if self.poll_task:
-            self.poll_task.cancel()
-            await self.poll_task
+        await self.poll_task
 
     async def long_polling(self):
         while self.is_running:
@@ -130,7 +128,7 @@ class Sender(TGBot):
         self.task: Optional[asyncio.Task] = None
         #
         app.on_startup.append(self.start)
-        # app.on_cleanup.append(self.stop)
+        app.on_cleanup.append(self.stop)
 
     async def send_message(self, **kwargs):
         await self.query("sendMessage", kwargs)
