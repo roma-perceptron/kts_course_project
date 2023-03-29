@@ -1,6 +1,5 @@
 import asyncio
 import json
-import time
 import typing
 from asyncio import Task
 from typing import Optional
@@ -17,19 +16,23 @@ from tgbot.tgbot import StateMachine
 
 
 class BotManager:
-    def __init__(self, app: "Application"):
+    def __init__(
+        self,
+        app: "Application",
+    ):
         self.app = app
         self.is_running: bool = False
         self.task: Optional[Task] = None
         self.accessor: BotAccessor = BotAccessor(app.database)
         self.state_machine: StateMachine = StateMachine(self.app, self.accessor)
-        self.timer_is_running: bool = False
-        self.timer: Optional[Task] = None
+        self.BOT_COMMANDS = {
+            "/help": "Help! \nI need somebody! \n(Help!) Not just anybody!",
+            "/game": "Начнем новую игру как только научимся это делать!",
+            "/stop": "Стоп-игра!",
+        }
         #
-        self.app.on_startup.append(self.start)
-        self.app.on_startup.append(self.start_timer)
-        self.app.on_cleanup.append(self.stop)
-        self.app.on_cleanup.append(self.stop_timer)
+        app.on_startup.append(self.start)
+        # app.on_cleanup.append(self.stop)
 
     async def _check_callback(self, update: dict):
         # переупаковываю содержимое ответного сообщения, для совместимости
@@ -67,7 +70,7 @@ class BotManager:
 
     #
     async def process_update(self):
-        while self.is_running:
+        while True:
             update = await self.app.updates_queue.get()
             # print(" " * 3, "[W]", update)
 
@@ -86,36 +89,9 @@ class BotManager:
             #
             self.app.updates_queue.task_done()
 
-    async def start(self, *args,  **kwargs):
+    async def start(self, *_: list, **__: dict):
         self.is_running = True
         self.task = asyncio.create_task(self.process_update())
         #
         await self.app.updates_queue.join()
         print(" " * 3, "app.manager.start - ok")
-
-    async def stop(self, *args,  **kwargs):
-        await self.state_machine.session.close()
-        self.is_running = False
-        self.task.cancel()
-
-    # timer..
-    async def check_timer(self):
-        # print(self.app.current_teams)
-        return False
-
-    async def timer_tick(self):
-        while self.timer_is_running:
-            await asyncio.sleep(1)
-            res = await self.check_timer()
-            # print('..tick', res)
-
-    async def start_timer(self, *args, **kwargs):
-        self.timer_is_running = True
-        self.timer = asyncio.create_task(self.timer_tick())
-        #
-        print(" " * 3, "app.manager.start_timer - ok")
-
-    async def stop_timer(self, *args, **kwargs):
-        self.timer_is_running = False
-        self.timer.cancel()
-        await self.timer
