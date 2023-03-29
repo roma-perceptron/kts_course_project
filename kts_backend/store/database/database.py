@@ -34,7 +34,7 @@ class Database:
         self.session = sessionmaker(
             bind=self._engine, expire_on_commit=False, class_=AsyncSession
         )
-        print(' '*3, 'ok database, connected!')
+        print(" " * 3, "ok database, connected!")
 
     async def disconnect(self, *_: list, **__: dict) -> None:
         pass

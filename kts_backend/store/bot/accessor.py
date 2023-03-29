@@ -7,6 +7,8 @@ from kts_backend.game.models import GameModel, PlayerModel, GameScoreModel
 from sqlalchemy.orm import selectinload, joinedload, subqueryload
 from sqlalchemy.orm import Bundle
 
+from kts_backend.utils import get_random_scores, FAKE_PLAYERS, FAKE_CHAT_ID
+
 
 class BotAccessor(BaseAccessor):
     async def update_game(self):
@@ -83,3 +85,16 @@ class BotAccessor(BaseAccessor):
             }
             for player in players
         ]
+
+    async def make_fake_game(self):
+        game_id, player_ids = await self.create_game(
+            chat_id=FAKE_CHAT_ID, players=FAKE_PLAYERS
+        )
+        print("setp1 ok")
+        await self.create_score(
+            game_id=game_id,
+            player_ids=player_ids,
+            player_points=get_random_scores(),
+        )
+        print("setp2 ok")
+        return "Yeah, new fake game just created! Check the last game command.."

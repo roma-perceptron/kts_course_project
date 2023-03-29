@@ -16,7 +16,8 @@ exclude = '''
   | migrations
   | alembic
   | etc
-  | tgbot_ex
   | venv
+  | venv3.10
+  | tgbot/scheme
 )/
 '''

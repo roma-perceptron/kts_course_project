@@ -10,6 +10,5 @@ if typing.TYPE_CHECKING:
 @pytest.fixture(scope="session")
 async def app():
     app = await setup_app()
-    app.test_field = 'Yeah!'
+    app.test_field = "Yeah!"
     return app
-
