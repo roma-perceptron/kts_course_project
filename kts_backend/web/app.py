@@ -24,8 +24,8 @@ from kts_backend.store import setup_store
 
 
 class Application(AiohttpApplication):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.config = None
         self.store = None
         self.database: Optional[Database] = None
@@ -46,7 +46,7 @@ class Application(AiohttpApplication):
         print(" " * 3, "queues inited!")
 
 
-app = Application()
+app = Application(debug=True)
 
 
 async def setup_app() -> Application:
@@ -55,12 +55,14 @@ async def setup_app() -> Application:
     # creating database
     app.database = Database(app)
 
-    # creating Bot's poller and sender instances
+    # # creating Bot's poller and sender instances
     app.bot = setup_poller(app)
     app.sender = setup_sender(app)
-
-    # creating Manager instance
+    #
+    # # creating Manager instance
     app.manager = BotManager(app)
+
+    app.on_startup.append(app.bot.set_commands)
 
     # all coros should start via call app.on_startup in each __init__
     print("preparing done:")
