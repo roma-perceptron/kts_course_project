@@ -24,8 +24,8 @@ from kts_backend.store import setup_store
 
 
 class Application(AiohttpApplication):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.config = None
         self.store = None
         self.database: Optional[Database] = None
@@ -37,6 +37,8 @@ class Application(AiohttpApplication):
         #
         self.user_states = {}
         self.current_teams = {}
+        self.current_games = {}
+        self.timer_schedule = []
         #
         self.on_startup.append(self.init_queues)
 
@@ -46,7 +48,7 @@ class Application(AiohttpApplication):
         print(" " * 3, "queues inited!")
 
 
-app = Application()
+app = Application()     # debug=True
 
 
 async def setup_app() -> Application:
