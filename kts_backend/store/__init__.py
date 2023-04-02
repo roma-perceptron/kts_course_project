@@ -2,7 +2,6 @@ import asyncio
 import typing
 
 from kts_backend.store.database.database import Database
-
 from kts_backend.store.bot.manager import BotManager
 from kts_backend.store.bot.accessor import BotAccessor
 

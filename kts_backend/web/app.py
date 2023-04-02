@@ -1,4 +1,5 @@
 import asyncio
+import pickle
 from typing import Sequence, Callable
 
 from aiohttp.web import (
@@ -8,6 +9,7 @@ from aiohttp.web import (
 )
 
 # from pyparsing import Optional    # где это вообще используется или должно?
+from sqlalchemy import select
 
 from kts_backend import __appname__, __version__
 from .urls import register_urls
@@ -21,6 +23,7 @@ from kts_backend.store import setup_store
 
 
 # __all__ = ("ApiApplication",)
+from ..game.models import CurrentParamsModel
 
 
 class Application(AiohttpApplication):
@@ -41,14 +44,31 @@ class Application(AiohttpApplication):
         self.timer_schedule = []
         #
         self.on_startup.append(self.init_queues)
+        self.on_shutdown.append(self.save_current)
 
     async def init_queues(self, *args, **kwargs):
         self.updates_queue = asyncio.Queue()
         self.answers_queue = asyncio.Queue()
         print(" " * 3, "queues inited!")
 
+    async def save_current(self, *args, **kwargs):
+        await self.manager.accessor.clear_table(CurrentParamsModel)
+        await self.manager.accessor.execute_query_creation(
+            CurrentParamsModel(
+                current=pickle.dumps(
+                    {
+                        "states": self.user_states,
+                        "teams": self.current_teams,
+                        "games": self.current_games,
+                        "schedule": self.timer_schedule,
+                    }
+                )
+            )
+        )
+        print("current params saved ok")
 
-app = Application()     # debug=True
+
+app = Application(debug=False)  # debug=True
 
 
 async def setup_app() -> Application:
@@ -66,5 +86,6 @@ async def setup_app() -> Application:
 
     # all coros should start via call app.on_startup in each __init__
     print("preparing done:")
+
     #
     return app
