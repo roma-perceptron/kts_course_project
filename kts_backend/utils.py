@@ -1,6 +1,6 @@
 import json
 from random import randint
-from typing import Optional
+from typing import Optional, Union
 
 BOT_NAME = "@rp_kts_course_project_bot"
 FAKE_CHAT_ID = -1001938935834
@@ -50,7 +50,7 @@ FAKE_PLAYERS = [
 ]
 
 
-def dict_to_readable_text(data: Optional[dict]):
+def dict_to_readable_text(data: Optional[Union[dict, list]]):
     return (
         json.dumps(data, indent="\t", ensure_ascii=False)
         .encode("utf8")

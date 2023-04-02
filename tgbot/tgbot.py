@@ -19,9 +19,7 @@ BOT_COMMANDS = [
 BOT_STATE_ACTIONS = {
     cmd["command"]: cmd["action"] for cmd in BOT_COMMANDS_AND_STATES
 }
-BOT_COMMAND_NAMES = [
-    cmd["command"] for cmd in BOT_COMMANDS
-]
+BOT_COMMAND_NAMES = [cmd["command"] for cmd in BOT_COMMANDS]
 
 TOKEN = os.environ.get("TG_BOT_TOKEN", "")
 
@@ -46,16 +44,18 @@ class TGBot:
         url += "&".join([f"{k}={v}" for k, v in params.items()])
         return url
 
-    async def _send_action(self, method: str, params: dict):
-        params['action'] = 'typing'
-        query_link = self.build_query('sendChatAction', params)
+    async def _send_action(
+        self, method: Optional[str], params: dict, sleep: int = 1
+    ):
+        params["action"] = "typing"
+        query_link = self.build_query("sendChatAction", params)
         async with self.session.get(query_link) as resp:
             await resp.json()
-        await asyncio.sleep(1)    # спорно, ага..
+        await asyncio.sleep(sleep)  # спорно, ага..
 
     async def query(self, method: str, params: Optional[dict] = dict):
-        if params.get('chat_id', False):
-            await self._send_action(method, {'chat_id': params['chat_id']})
+        if params.get("chat_id", False):
+            await self._send_action(method, {"chat_id": params["chat_id"]})
         query_link = self.build_query(method, params)
         async with self.session.get(query_link) as resp:
             data = await resp.json()
@@ -98,14 +98,12 @@ class Poller(TGBot):
             print("wow! exp 1", exp)
             print("*" * 33)
             raise ZeroDivisionError
-        # self.poll_task = self.loop.create_task(self.long_polling())
         print(" " * 3, "app.bot.start - ok")
 
     async def stop(self, *args, **kwargs):
         await self.session.close()
         self.is_running = False
         self.poll_task.cancel()
-
 
     async def long_polling(self):
         while self.is_running:

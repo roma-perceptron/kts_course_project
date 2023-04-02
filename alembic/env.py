@@ -18,6 +18,7 @@ from kts_backend.store.database import db
        первичная инициализация:     alembic init --template async alembic
        генерация миграции:          python -m alembic revision --autogenerate -m "Migration name" 
        применение миграции:         python -m alembic upgrade head
+       откат миграции на одну:      python -m alembic downgrade -1
 """
 
 
