@@ -6,9 +6,6 @@ from sqlalchemy.exc import InvalidRequestError
 
 from kts_backend.game.dataclasses import (
     QuestionDC,
-    PlayerDC,
-    TeamDC,
-    GameDC,
     GameScoreDC,
 )
 from kts_backend.store.base_accessor import BaseAccessor
@@ -25,14 +22,6 @@ from kts_backend.game.models import (
 )
 
 from sqlalchemy.orm import selectinload, joinedload, subqueryload
-
-from kts_backend.store.database import db
-from kts_backend.utils import (
-    get_random_scores,
-    FAKE_PLAYERS,
-    FAKE_CHAT_ID,
-    dict_to_readable_text,
-)
 
 
 class BotAccessor(BaseAccessor):
@@ -153,9 +142,9 @@ class BotAccessor(BaseAccessor):
             .options(subqueryload(GameModel.questions))
             .order_by(GameModel.id.desc())
         )
-        game = await self.execute_query(query, only_last=True, joined=True)
-
-        return game
+        async with self.database.session.begin() as session:
+            result: ChunkedIteratorResult = await session.execute(query)
+            return result.fetchone()[0]
 
     #
     async def get_questions_from_db__virgin(self, count=1):
@@ -207,7 +196,6 @@ class BotAccessor(BaseAccessor):
             .values(virgin=False)
         )
         result = await self.execute_query(query, no_return=True)
-        print("result", result)
 
     #
     async def add_questions_to_used(
@@ -256,7 +244,6 @@ class BotAccessor(BaseAccessor):
             )
             result = await session.execute(query)
             game = result.scalars().one()
-            print("\n\n game nax", game)
             return game
 
     #
@@ -270,7 +257,6 @@ class BotAccessor(BaseAccessor):
                 team.players.append(player)
             except InvalidRequestError:
                 pass
-            print("()", team.__dict__)
             await session.commit()
 
     #

@@ -17,7 +17,6 @@ from kts_backend.utils import dict_to_readable_text
 if typing.TYPE_CHECKING:
     from kts_backend.web.app import Application
 
-from tgbot import state_machine_functions
 from tgbot.tgbot import StateMachine
 
 
@@ -40,7 +39,6 @@ class BotManager:
 
     async def _check_callback(self, update: dict):
         # переупаковываю содержимое ответного сообщения, для совместимости
-        # print(dict_to_readable_text(update))
         if update.get("callback_query", False):
             update = {
                 "message": {

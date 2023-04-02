@@ -1,7 +1,9 @@
 from tgbot.state_machine_functions import (
-    get_players, make_fake_game, get_last_game, example, start_team,
+    example, start_team,
     await_coplayers, join_team, ignore, await_launch,
-    await_choose_player_who_answer, await_answer, test_question, test, stop_game)
+    await_choose_player_who_answer, await_answer, stop_game, ready_for_early_answer, statistic,
+    test_question, test
+)
 
 BOT_COMMANDS_AND_STATES = [
     # --- --- --- --- --- --- --- --- --- --- --- --- КОМАНДЫ --- --- --- --- --- --- --- --- --- --- --- --- --- ---
@@ -15,26 +17,11 @@ BOT_COMMANDS_AND_STATES = [
         'description': 'Остановить игру и распустить команду',
         'action': stop_game
     },
-    # {
-    #     'command': '/fake_game',
-    #     'description': 'Создать новую демо-игру',
-    #     'action': make_fake_game
-    # },
-    # {
-    #     'command': '/get_game',
-    #     'description': 'Получить данные последней игры',
-    #     'action': get_last_game
-    # },
-    # {
-    #     'command': '/get_players',
-    #     'description': 'Показать всех игроков',
-    #     'action': get_players
-    # },
-    # {
-    #     'command': '/test',
-    #     'description': 'Сгенерировать несколько случайных вопросов',
-    #     'action': test
-    # },
+    {
+        'command': '/statistic',
+        'description': 'Посмотреть статистику',
+        'action': statistic
+    },
     # {
     #     'command': '/chatgpt',
     #     'description': 'Сгенерировать несколько случайных вопросов',
@@ -43,11 +30,6 @@ BOT_COMMANDS_AND_STATES = [
     # --- --- --- --- --- --- --- --- --- --- --- --- КОМАНДЫ --- --- --- --- --- --- --- --- --- --- --- --- --- ---
     #
     # --- --- --- --- --- --- --- --- --- --- --- -- СОСТОЯНИЯ --- --- --- --- --- --- --- --- --- --- --- --- --- --
-    # {
-    #     'command': 'await_coplayers',
-    #     'description': 'Ожидание остальных участников',
-    #     'action': example
-    # },
     {
         'command': 'await_coplayers',
         'description': 'test here',
@@ -67,6 +49,11 @@ BOT_COMMANDS_AND_STATES = [
         'command': 'await_answer',
         'description': 'test here',
         'action': await_answer
+    },
+    {
+        'command': 'ready_for_early_answer',
+        'description': 'test here',
+        'action': ready_for_early_answer
     },
     # --- --- --- --- --- --- --- --- --- --- --- -- СОСТОЯНИЯ --- --- --- --- --- --- --- --- --- --- --- --- --- --
     #
@@ -90,5 +77,3 @@ BOT_COMMANDS_AND_STATES = [
         'action': example
     },
 ]
-
-# /start -> await_coplayers - in_game/captain_in_game
