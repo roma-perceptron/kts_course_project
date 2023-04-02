@@ -46,7 +46,16 @@ class TGBot:
         url += "&".join([f"{k}={v}" for k, v in params.items()])
         return url
 
+    async def _send_action(self, method: str, params: dict):
+        params['action'] = 'typing'
+        query_link = self.build_query('sendChatAction', params)
+        async with self.session.get(query_link) as resp:
+            await resp.json()
+        await asyncio.sleep(1)    # спорно, ага..
+
     async def query(self, method: str, params: Optional[dict] = dict):
+        if params.get('chat_id', False):
+            await self._send_action(method, {'chat_id': params['chat_id']})
         query_link = self.build_query(method, params)
         async with self.session.get(query_link) as resp:
             data = await resp.json()
@@ -76,7 +85,7 @@ class Poller(TGBot):
         self.offset: int = 0
         #
         self.app.on_startup.append(self.start)
-        # self.app.on_startup.append(self.set_commands)
+        self.app.on_startup.append(self.set_commands)
         self.app.on_cleanup.append(self.stop)
 
     async def start(self, *args, **kwargs):
@@ -116,12 +125,12 @@ class Poller(TGBot):
             print("wow! exp 3", exp)
             print("*" * 33)
             raise exp
-        print(
-            "updates:",
-            updates.get("ok", "FAIL"),
-            len(updates.get("result", [])),
-            updates,
-        )
+        # print(
+        #     "updates:",
+        #     updates.get("ok", "FAIL"),
+        #     len(updates.get("result", [])),
+        #     updates,
+        # )
         if updates.get("result", []):
             self.offset = updates["result"][-1]["update_id"] + 1
             #
@@ -149,7 +158,7 @@ class Sender(TGBot):
         while True:
             answer = await self.app.answers_queue.get()
             # print(" " * 3, "[A]", answer)
-            if answer.get("text", False):
+            if answer and answer.get("text", False):
                 await self.send_message(**answer)
             #
             self.app.answers_queue.task_done()

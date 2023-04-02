@@ -1,5 +1,7 @@
-from tgbot.state_machine_functions import (get_players, make_fake_game, get_last_game, example, start_team,
-                                           await_coplayers, join_team, ignore, await_launch)
+from tgbot.state_machine_functions import (
+    get_players, make_fake_game, get_last_game, example, start_team,
+    await_coplayers, join_team, ignore, await_launch,
+    await_choose_player_who_answer, await_answer)
 
 BOT_COMMANDS_AND_STATES = [
     # --- --- --- --- --- --- --- --- --- --- --- --- КОМАНДЫ --- --- --- --- --- --- --- --- --- --- --- --- --- ---
@@ -40,6 +42,16 @@ BOT_COMMANDS_AND_STATES = [
         'command': 'await_launch',
         'description': 'test here',
         'action': await_launch
+    },
+    {
+        'command': 'await_choose_player_who_answer',
+        'description': 'test here',
+        'action': await_choose_player_who_answer
+    },
+    {
+        'command': 'await_answer',
+        'description': 'test here',
+        'action': await_answer
     },
     # --- --- --- --- --- --- --- --- --- --- --- -- СОСТОЯНИЯ --- --- --- --- --- --- --- --- --- --- --- --- --- --
     #

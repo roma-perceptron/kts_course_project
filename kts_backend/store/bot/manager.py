@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import json
 import time
 import typing
@@ -12,8 +13,9 @@ from kts_backend.utils import dict_to_readable_text
 if typing.TYPE_CHECKING:
     from kts_backend.web.app import Application
 
-
+from tgbot import state_machine_functions
 from tgbot.tgbot import StateMachine
+
 
 
 class BotManager:
@@ -25,6 +27,7 @@ class BotManager:
         self.state_machine: StateMachine = StateMachine(self.app, self.accessor)
         self.timer_is_running: bool = False
         self.timer: Optional[Task] = None
+        self.timer_delay: int = 1
         #
         self.app.on_startup.append(self.start)
         self.app.on_startup.append(self.start_timer)
@@ -98,16 +101,31 @@ class BotManager:
         self.is_running = False
         self.task.cancel()
 
+    #
     # timer..
-    async def check_timer(self):
-        # print(self.app.current_teams)
-        return False
+    async def check_timers(self):
+        for timer_task in self.app.timer_schedule:
+            if not timer_task['executed']:
+                if datetime.datetime.now() >= timer_task['time']:
+                    print('timer dzin!!!', datetime.datetime.now(), timer_task['type'], timer_task['time'])
+                    answer = await timer_task['command'](
+                        self.state_machine,
+                        {'chat_id': timer_task['chat_id']}
+                    )
+                    timer_task['executed'] = True
+                    answer['chat_id'] = timer_task['chat_id']
+                    await self.app.answers_queue.put(answer)
+        #
+        # подчищаю..
+        self.app.timer_schedule = [
+            timer_task for timer_task in self.app.timer_schedule
+            if not timer_task['executed']
+        ]
 
     async def timer_tick(self):
         while self.timer_is_running:
-            await asyncio.sleep(1)
-            res = await self.check_timer()
-            # print('..tick', res)
+            await asyncio.sleep(self.timer_delay)
+            await self.check_timers()
 
     async def start_timer(self, *args, **kwargs):
         self.timer_is_running = True

@@ -62,3 +62,9 @@ def get_random_scores():
     first = randint(0, 100)
     second = 100 - first
     return first, second
+
+
+def generate_random_emoji():
+    code_point = randint(0x1F900, 0x1F9FF)
+    emoji = "\\U" + format(code_point, "X").zfill(8)
+    return emoji.encode("utf-8").decode("unicode_escape")
