@@ -16,40 +16,6 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 
-"""
-
-    Команды для Алембика:
-       первичная инициализация:     alembic init --template async alembic
-       генерация миграции:          python -m alembic revision --autogenerate -m "initial models" 
-       применение миграции:         python -m alembic upgrade head
-       откат миграции на одну:      python -m alembic downgrade -1
-       
-
-    Запросы в pgcli:
-        delete from "Questions";
-        delete from "UsedQuestions";
-        delete from "Games";
-        delete from "Players";
-        delete from "GameScores";
-        
-        drop table if exists games CASCADE;
-        drop table if exists _games_questions CASCADE;   
-        drop table if exists _players_teams CASCADE;
-        drop table if exists players CASCADE;
-        drop table if exists teams CASCADE;
-        drop table if exists game_scores CASCADE;
-        drop table if exists used_questions;
-        drop table if exists questions;
-        drop table if exists current;
-        delete from alembic_version;
-        
-
-insert into "Games" ("chat_id") values("123")
-
-
-
-"""
-
 
 class PlayerModel(db):
     __tablename__ = "players"
@@ -110,6 +76,21 @@ class GameModel(db):
     score = relationship(
         "GameScoreModel", back_populates="game", cascade="all,delete"
     )
+
+    #
+    def to_serializable(self):
+        from sqlalchemy.orm.state import InstanceState
+        return {
+            'id': self.id,
+            'created_at': str(self.created_at),
+            'team_id': self.team_id,
+            'questions1': [
+                {k: v for k, v in question.__dict__.items() if not isinstance(v, InstanceState)}
+                for question in self.questions
+            ],
+            'score': {k: v for k, v in self.score[-1].__dict__.items() if not isinstance(v, InstanceState)},
+            'team': {k: v for k, v in self.team.__dict__.items() if not isinstance(v, InstanceState)},
+        }
 
 
 class GameScoreModel(db):

@@ -8,7 +8,6 @@ from asyncio import Task
 from typing import Optional
 from aiohttp import ClientSession, TCPConnector
 
-from kts_backend.utils import dict_to_readable_text
 from tgbot.scheme.state_machine_scheme import BOT_COMMANDS_AND_STATES
 
 BOT_COMMANDS = [
@@ -72,8 +71,6 @@ class TGBot:
     #     )
     #     import requests
     #     res = requests.get(query_link)
-    #     print('res', res)
-    #     print(res.json())
 
 
 class Poller(TGBot):

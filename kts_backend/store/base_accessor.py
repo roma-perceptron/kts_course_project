@@ -58,22 +58,22 @@ class BaseAccessor:
             await session.execute(delete(model))
 
     async def get_or_create(self, model: db, **kwargs):
+        kwargs = {k: v for k, v in kwargs.items() if v}
         async with self.database.session.begin() as session:
             query = select(model).filter_by(**kwargs)
             instance = await session.execute(query)
             instance = instance.one_or_none()
             if instance:
-                print("\nexist ins:", instance)
                 return *instance, False
             else:
                 params = {k: v for k, v in kwargs.items() if v}
                 instance = model(**params)
                 session.add(instance)
                 await session.commit()
-                print("\nnewwww ins:", instance)
                 return instance, True
 
     async def update_or_create(self, model: db, **kwargs):
+        kwargs = {k: v for k, v in kwargs.items() if v}
         async with self.database.session.begin() as session:
             query = select(model).filter_by(**kwargs)
             instance = await session.execute(query)
