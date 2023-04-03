@@ -20,6 +20,7 @@ from kts_backend.store.bot.manager import BotManager
 
 from tgbot import setup_sender, setup_poller
 from kts_backend.store import setup_store
+from kts_backend.api.routes import setup_routes
 
 
 # __all__ = ("ApiApplication",)
@@ -68,11 +69,34 @@ class Application(AiohttpApplication):
         print("current params saved ok")
 
 
+class Request(AiohttpRequest):
+    # admin: Optional[Admin] = None
+
+    @property
+    def app(self) -> Application:
+        return super().app()
+
+
+class View(AiohttpView):
+    @property
+    def request(self) -> Request:
+        return super().request
+
+    @property
+    def database(self):
+        return self.request.app.database
+
+    @property
+    def manager(self):
+        return self.request.app.manager
+
+
 app = Application(debug=False)  # debug=True
 
 
 async def setup_app() -> Application:
     print("start creating app..")
+    setup_routes(app)
 
     # creating database
     app.database = Database(app)

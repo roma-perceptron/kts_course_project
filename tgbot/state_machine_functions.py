@@ -19,9 +19,9 @@ from sqlalchemy.exc import DBAPIError
 if typing.TYPE_CHECKING:
     from tgbot.tgbot import StateMachine
 
-NUMBER_ROUNDS = 3
+NUMBER_ROUNDS = 11
 WIN_SCORE = NUMBER_ROUNDS // 2 + 1
-TIME_TO_THINKING = 15
+TIME_TO_THINKING = 60
 TIME_TO_ANSWER = 60
 TIME_BETWEEN_ROUNDS = 5
 POINTER = "\U0001F449" + " "
@@ -81,12 +81,12 @@ async def _send_question(sm, data, question: QuestionDC):
     # сначала закидываем историю
     kwargs_for_reply = {"chat_id": data["chat_id"], "text": question.story}
     await sm.app.sender.query("sendMessage", kwargs_for_reply)
-    await asyncio.sleep(1)  # 5sec
+    await asyncio.sleep(3)  # 5sec
 
     # теперь сам вопрос
     kwargs_for_reply["text"] = question.question
     await sm.app.sender.query("sendMessage", kwargs_for_reply)
-    await asyncio.sleep(1)  # 2
+    await asyncio.sleep(2)  # 2
 
 
 async def start_round(sm: "StateMachine", data: dict):
