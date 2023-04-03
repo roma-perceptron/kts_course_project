@@ -88,7 +88,7 @@ class GameModel(db):
                 {k: v for k, v in question.__dict__.items() if not isinstance(v, InstanceState)}
                 for question in self.questions
             ],
-            'score': {k: v for k, v in self.score[-1].__dict__.items() if not isinstance(v, InstanceState)},
+            'score': {k: v for k, v in self.score[-1].__dict__.items() if not isinstance(v, InstanceState)} if self.score else {},
             'team': {k: v for k, v in self.team.__dict__.items() if not isinstance(v, InstanceState)},
         }
 

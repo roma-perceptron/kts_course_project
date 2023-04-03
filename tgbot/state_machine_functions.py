@@ -19,7 +19,7 @@ from sqlalchemy.exc import DBAPIError
 if typing.TYPE_CHECKING:
     from tgbot.tgbot import StateMachine
 
-NUMBER_ROUNDS = 11
+NUMBER_ROUNDS = 3
 WIN_SCORE = NUMBER_ROUNDS // 2 + 1
 TIME_TO_THINKING = 60
 TIME_TO_ANSWER = 60
@@ -651,7 +651,7 @@ async def statistic(sm: "StateMachine", data: dict):
     #     f"Статистика по последней игре от {game['created_at'].split('.')[0]}",
     #     f"Счет игры: "
     # ]
-    # return {'text': '\n\n'.join(stat)}
+    print(dict_to_readable_text(game))
     return {'text': dict_to_readable_text(game)}
 
 

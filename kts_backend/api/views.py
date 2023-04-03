@@ -28,3 +28,25 @@ class GetLastGame(View):
         print(payload)
         #
         return json_response(data=game.to_serializable())
+
+
+class GetPlayers(View):
+    async def get(self):
+        print('ok, i\'m here:', self.__class__.__name__)
+        payload = await get_payload(self)
+        players = await self.manager.accessor.get_all_players()
+        print(payload)
+        #
+        return json_response(data=players)
+
+
+class GetQuestions(View):
+    async def get(self):
+        print('ok, i\'m here:', self.__class__.__name__)
+        payload = await get_payload(self) or {}
+        questionsDC = await self.manager.accessor.get_questions_from_db__reused(**payload)
+        questions = [question.__dict__ for question in questionsDC]
+        print(payload)
+        print('\n', questions)
+        #
+        return json_response(data=questions)
