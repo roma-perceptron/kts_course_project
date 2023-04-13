@@ -84,7 +84,7 @@ class GameModel(db):
             'id': self.id,
             'created_at': str(self.created_at),
             'team_id': self.team_id,
-            'questions1': [
+            'questions': [
                 {k: v for k, v in question.__dict__.items() if not isinstance(v, InstanceState)}
                 for question in self.questions
             ],
@@ -118,6 +118,7 @@ class QuestionModel(db):
     question = Column(VARCHAR(512), nullable=False, unique=True)
     story = Column(TEXT, nullable=True)
     answers = Column(ARRAY(VARCHAR(256)))
+    complexity = Column(Integer, default=0)
     used_questions = relationship(
         "UsedQuestionModel", cascade="all,delete", back_populates="questions"
     )
@@ -131,6 +132,7 @@ class QuestionModel(db):
             context=self.context,
             story=self.story,
             answers=self.answers,
+            complexity=self.complexity,
             id_db=self.id,
         )
 

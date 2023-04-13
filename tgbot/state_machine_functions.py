@@ -2,24 +2,18 @@ import asyncio
 import json
 import random
 import typing
-import uuid
 
 from datetime import datetime, timedelta
 
 from kts_backend.utils import dict_to_readable_text, generate_random_emoji
 from kts_backend.game.dataclasses import QuestionDC, PlayerDC
-from kts_backend.game.models import QuestionModel, UsedQuestionModel
 
-from kts_backend.game.models import QuestionModel
-from chatgpt.chatgpt import gpt_master, get_theme
-from openai.error import APIConnectionError
-
-from sqlalchemy.exc import DBAPIError
+from kts_backend.utils import logger
 
 if typing.TYPE_CHECKING:
     from tgbot.tgbot import StateMachine
 
-NUMBER_ROUNDS = 3
+NUMBER_ROUNDS = 11
 WIN_SCORE = NUMBER_ROUNDS // 2 + 1
 TIME_TO_THINKING = 60
 TIME_TO_ANSWER = 60
@@ -38,11 +32,12 @@ FAKE_QUESTION = QuestionDC(
 """
 
 
-async def example(sm: "StateMachine", data: dict):
-    msg = "just empty example.."
-    return msg
+# @logger
+async def ignore(sm: "StateMachine", data: dict):
+    return {}  # empty message == no reply message
 
 
+# @logger
 async def _send_launch_button(sm: "StateMachine", data: dict):
     reply_markup = {
         "keyboard": [[{"text": "Запустить игру!"}]],
@@ -57,6 +52,7 @@ async def _send_launch_button(sm: "StateMachine", data: dict):
     await sm.app.sender.query("sendMessage", kwargs_for_reply)
 
 
+# @logger
 async def await_launch(sm: "StateMachine", data: dict):
     kwargs_for_reply = {
         "chat_id": data["chat_id"],
@@ -66,6 +62,7 @@ async def await_launch(sm: "StateMachine", data: dict):
     return kwargs_for_reply
 
 
+# @logger
 async def _send_round_caption(sm: "StateMachine", data: dict):
     game = current_game(sm, data)
     #
@@ -77,6 +74,7 @@ async def _send_round_caption(sm: "StateMachine", data: dict):
     return game
 
 
+# @logger
 async def _send_question(sm, data, question: QuestionDC):
     # сначала закидываем историю
     kwargs_for_reply = {"chat_id": data["chat_id"], "text": question.story}
@@ -89,14 +87,12 @@ async def _send_question(sm, data, question: QuestionDC):
     await asyncio.sleep(2)  # 2
 
 
+# @logger
 async def start_round(sm: "StateMachine", data: dict):
-    await asyncio.sleep(1)
-
     # сообщение о раунде
     game = await _send_round_caption(sm, data)
 
     # проверяем есть ли вопрос в запасе, если нет - генерим его
-    # game['next_questions'] = []
     if game["next_questions"]:
         question = game["next_questions"].pop()
     else:
@@ -107,12 +103,14 @@ async def start_round(sm: "StateMachine", data: dict):
                 "text": "Мне нужно немного времени чтобы сформулировать вопрос..",
             },
         )
-        new_questions = await get_new_questions(sm, data)
+        new_questions = await sm.accessor.make_new_questions()
+        while not new_questions:
+            new_questions = await sm.accessor.make_new_questions()
+        #
         question = random.choice(new_questions)
 
     # формируем и задаем вопрос
     game_round = {
-        # 'question': game['next_questions'].pop(),
         "question": question,
         "team_answer": "",
         "score": 0,
@@ -134,14 +132,18 @@ async def start_round(sm: "StateMachine", data: dict):
     return {"text": "У вас минута на обсуждение!"}
 
 
+# @logger
 async def send_button_for_early_answer(sm: "StateMachine", data: dict):
+    if not current_team(sm, data):
+        return {}
+    #
     reply_markup = {
         "keyboard": [[{"text": "Досрочный ответ"}]],
         "selective": True,
     }
     captain = current_team(sm, data)[0]
     captain_uci = f"{captain['user_id']}:{data['chat_id']}"
-    sm.app.user_states[captain_uci] = 'ready_for_early_answer'
+    sm.app.user_states[captain_uci] = 'await_coplayers'
     kwargs_for_reply = {
         "chat_id": data["chat_id"],
         "text": f"@{captain['username']} Если готовы отвечать - жмите кнопку",
@@ -151,14 +153,8 @@ async def send_button_for_early_answer(sm: "StateMachine", data: dict):
     return {}
 
 
+# @logger
 async def ready_for_early_answer(sm: "StateMachine", data: dict):
-    for timer in sm.app.timer_schedule:
-        if (
-            timer["chat_id"] == data["chat_id"]
-            and timer["type"] == "continue_round"
-        ):
-            timer["executed"] = True
-    #
     captain = current_team(sm, data)[0]
     captain_uci = f"{captain['user_id']}:{data['chat_id']}"
     sm.app.user_states[captain_uci] = 'ignore'
@@ -166,8 +162,7 @@ async def ready_for_early_answer(sm: "StateMachine", data: dict):
     return {}
 
 
-
-
+# @logger
 async def _checkout_score(game: dict):
     wisemans_score = sum(game_round["score"] for game_round in game["rounds"])
     chatgpts_score = len(game["rounds"]) - wisemans_score
@@ -187,6 +182,7 @@ def _format_answer(answer: str):
     return answer.lower().strip()
 
 
+# @logger
 async def _check_answer(sm: "StateMachine", data: dict, answer: str):
     game = current_game(sm, data)
     game_round = game["rounds"][-1]
@@ -207,14 +203,17 @@ async def _check_answer(sm: "StateMachine", data: dict, answer: str):
             await sm.app.sender._send_action(
                 method=None, params={"chat_id": data["chat_id"]}, sleep=0
             )
-            win = await gpt_master.check_answer(game_round["question"], answer)
+            # win = sm.app.gpt_master.check_answer(game_round["question"], answer)
+            loop = asyncio.get_event_loop()
+            win = await loop.run_in_executor(None, sm.app.gtp_master.check_answer, game_round["question"], answer)
     #
     if win:
         game_round["score"] = 1
         result = "И это правильный ответ!"
     else:
         if answer:
-            result = "К сожалению, я не могу принять этот ответ."
+            result = f"Вы ответили: {answer}\n"
+            result += "К сожалению, я не могу принять этот ответ."
         else:
             result = "Печально что Вы даже не попробовали выдвинуть версию.."
         result += "\n\nПравильный ответ: "
@@ -226,6 +225,7 @@ async def _check_answer(sm: "StateMachine", data: dict, answer: str):
     return result + "\n\n" + score_str, score
 
 
+# @logger
 async def await_answer(sm: "StateMachine", data: dict):
     if not current_game(sm, data):
         return {}
@@ -247,21 +247,17 @@ async def await_answer(sm: "StateMachine", data: dict):
         if answer
         else "Вы не дали ответа в течении минуты",
         "reply_markup": json.dumps({"remove_keyboard": True})
-        if not answer
-        else None,
+        # if not answer
+        # else json.dumps(None),
     }
     await sm.app.sender.query("sendMessage", kwargs_for_reply)
 
-    # затираю состояния у всех юзеров текущей группы.. перезаписываю?
-    sm.app.user_states = {
-        user_chat_id: state
-        for user_chat_id, state in sm.app.user_states.items()
-        if user_chat_id.split(":")[1] != data["chat_id"]
-    }
+    # затираю состояния и таймеры текущей группы
+    clear_states_and_timers(sm, data)
 
     # запись в базу данные о сыгранном вопросе
     current_question = current_game(sm, data)["rounds"][-1]["question"]
-    result = await sm.accessor.add_questions_to_used(
+    await sm.accessor.add_questions_to_used(
         current_question, data["chat_id"], current_team(sm, data)
     )
     await sm.accessor.mark_as_non_virgin([current_question.id_db])
@@ -279,14 +275,12 @@ async def await_answer(sm: "StateMachine", data: dict):
 
         result += "\n\nНа этом игра закончена, всем спасибо, все свободны!"
         # здесь еще надо сохранить все в БД..
-        sm.app.current_games.pop(data["chat_id"])
+        clear_states_and_timers(sm, data)
+        # зачистить саму группу и текущую игру
         sm.app.current_teams.pop(data["chat_id"])
-        sm.app.timer_schedule = [
-            tt
-            for tt in sm.app.timer_schedule
-            if tt["chat_id"] != data["chat_id"]
-        ]
+        sm.app.current_games.pop(data["chat_id"])
     else:
+        clear_states_and_timers(sm, data)
         # добавляю в расписание таймер для запуска следующего раунда
         sm.app.timer_schedule.append(
             {
@@ -302,6 +296,7 @@ async def await_answer(sm: "StateMachine", data: dict):
     return kwargs_for_reply
 
 
+# @logger
 async def await_choose_player_who_answer(sm: "StateMachine", data: dict):
     if condition_for_quasi_callback(sm, data):
         if data["message"]["text"].startswith(POINTER):
@@ -339,30 +334,41 @@ async def await_choose_player_who_answer(sm: "StateMachine", data: dict):
         return {}
 
 
+# @logger
 async def _choose_player_who_answer(sm: "StateMachine", data: dict):
     players = current_team(sm, data)
     if not players:
         return {}
-
-    captain = players[0]
-    #
-    reply_markup = {
-        "keyboard": [
-            [{"text": POINTER + player.get("first_name", "?!")}]
-            for player in players
-        ],
-        # "one_time_keyboard": True,
-        "selective": True,
-    }
-    #
-    kwargs_for_reply = {
-        "chat_id": data["chat_id"],
-        "text": f"@{captain['username']} Кто будет отвечать на вопрос?",
-        "reply_markup": json.dumps(reply_markup),
-    }
-    uci = f"{captain['user_id']}:{data['chat_id']}"
-    sm.app.user_states[uci] = "await_choose_player_who_answer"
-    await sm.app.sender.query("sendMessage", kwargs_for_reply)
+    elif len(players) == 1:
+        # сразу даю слово единственному участнику команды
+        kwargs_for_reply = {
+            "chat_id": data["chat_id"],
+            "text": f"@{players[0]['username']} я весь во внимании:",
+            "reply_markup": json.dumps(
+                {"force_reply": True, "selective": True}
+            ),
+        }
+        await sm.app.sender.query('sendMessage', kwargs_for_reply)
+        uci = f"{players[0]['user_id']}:{data['chat_id']}"
+        sm.app.user_states[uci] = "await_answer"
+    else:
+        captain = players[0]
+        reply_markup = {
+            "keyboard": [
+                [{"text": POINTER + player.get("first_name", "?!")}]
+                for player in players
+            ],
+            "selective": True,
+        }
+        #
+        kwargs_for_reply = {
+            "chat_id": data["chat_id"],
+            "text": f"@{captain['username']} Кто будет отвечать на вопрос?",
+            "reply_markup": json.dumps(reply_markup),
+        }
+        uci = f"{captain['user_id']}:{data['chat_id']}"
+        sm.app.user_states[uci] = "await_choose_player_who_answer"
+        await sm.app.sender.query("sendMessage", kwargs_for_reply)
 
     # добавляю таймер для ответа
     sm.app.timer_schedule.append(
@@ -376,6 +382,7 @@ async def _choose_player_who_answer(sm: "StateMachine", data: dict):
     )
 
 
+# @logger
 async def continue_round(sm: "StateMachine", data: dict):
     # сообщение об окончании времени на размышление
     await sm.app.sender.query(
@@ -387,6 +394,7 @@ async def continue_round(sm: "StateMachine", data: dict):
     return {}
 
 
+# @logger
 async def early_answer(sm: "StateMachine", data: dict):
     # сообщение об готовности принять досрочный ответ
     await sm.app.sender.query(
@@ -402,6 +410,7 @@ async def early_answer(sm: "StateMachine", data: dict):
     return {}
 
 
+# @logger
 async def launch_game(sm: "StateMachine", data: dict):
     kwargs_for_reply = {
         "chat_id": data["chat_id"],
@@ -439,32 +448,36 @@ async def launch_game(sm: "StateMachine", data: dict):
     }
 
     await sm.accessor.update_or_create_current_game(data["chat_id"])
-
     return await start_round(sm, data)
 
 
+# @logger
 async def stop_game(sm: "StateMachine", data: dict):
     team = current_team(sm, data)
     if team:
         if team[0]["user_id"] == data["user_id"]:
-            # удаляю данные об игре, о команде, о состоянии и таймеры (если были)
-            sm.app.current_games.pop(data["chat_id"], None)
-            sm.app.current_teams.pop(data["chat_id"], None)
-            sm.app.user_states.pop(f"{data['user_id']}:{data['chat_id']}", None)
-            sm.app.timer_schedule = [
-                t
-                for t in sm.app.timer_schedule
-                if t["chat_id"] != data["chat_id"]
-            ]
+            # удаляю данные об игре, о состоянии и таймеры (если были)
+            clear_states_and_timers(sm, data)
+            # зачистить саму группу и игру
+            sm.app.current_teams.pop(data["chat_id"])
+            sm.app.current_games.pop(data["chat_id"])
             text = "Готово! Можно начинать новую игру!"
         else:
             text = "Только капитан команды может отменить игру"
         #
-        return {"text": text}
+        return {
+            "text": text,
+            "reply_markup": json.dumps({"remove_keyboard": True})
+        }
     else:
-        return {"text": "Так вроде и не начато никакой игры в этом чате.."}
+        return {
+            "text": "Так вроде и не начато никакой игры в этом чате..",
+            "reply_markup": json.dumps({"remove_keyboard": True})
+        }
 
 
+
+# @logger
 async def start_team(sm: "StateMachine", data: dict):
     # проверить нет ли текущей команды в этом чате..
     if not current_team(sm, data):
@@ -506,6 +519,7 @@ async def start_team(sm: "StateMachine", data: dict):
     return kwargs_for_reply
 
 
+# @logger
 async def add_player_to_team(sm: "StateMachine", data: dict):
     player_data = {
         "user_id": data["user_id"],
@@ -527,16 +541,22 @@ def condition_for_quasi_callback(sm: "StateMachine", data: dict):
     return reply or owner
 
 
-# здесь просиходит подтверждение нажатия на кнопку запуска игры.. неоднозначный способ, но какой уж есть
+# здесь проиcходит подтверждение нажатия на кнопку запуска игры.. неоднозначный способ, но какой уж есть
+# @logger
 async def await_coplayers(sm: "StateMachine", data: dict):
     if condition_for_quasi_callback(sm, data):
         if data["message"]["text"] == "Запустить игру!":
             sm.app.user_states[data["user_chat_id"]] = "ignore"
             return await launch_game(sm, data)
+        elif data['message']['text'] == "Досрочный ответ":
+            return await ready_for_early_answer(sm, data)
+        else:
+            return {}
     else:
         return {}
 
 
+# @logger
 async def _edit_reply_buttons(sm: "StateMachine", data: dict):
     edited_markup = data["message"]["reply_markup"]
     edited_markup["inline_keyboard"].insert(
@@ -544,7 +564,7 @@ async def _edit_reply_buttons(sm: "StateMachine", data: dict):
         [
             {
                 "text": generate_random_emoji()
-                + " @"
+                + " "
                 + data["message"]["from"]["first_name"],
                 "callback_data": "ignore",
             },
@@ -560,6 +580,7 @@ async def _edit_reply_buttons(sm: "StateMachine", data: dict):
     )
 
 
+# @logger
 async def join_team(sm: "StateMachine", data: dict):
     if user_in_team(sm, data):
         msg = "Вы уже в команде!"
@@ -568,10 +589,6 @@ async def join_team(sm: "StateMachine", data: dict):
         msg = f"{data['message']['from'].get('first_name', 'Инкогнито..')} присоединяется к команде!"
         await _edit_reply_buttons(sm, data)
     return {"text": msg}
-
-
-async def ignore(sm: "StateMachine", data: dict):
-    return {}  # empty message
 
 
 def current_game(sm: "StateMachine", data: dict):
@@ -586,75 +603,53 @@ def user_in_team(sm: "StateMachine", data: dict):
     return data["user_id"] in [p["user_id"] for p in current_team(sm, data)]
 
 
-#
-async def test_question(sm: "StateMachine", data: dict):
-    ts = datetime.now()
-    try:
-        res = gpt_master.get_question(get_theme(), count=5)
-    except APIConnectionError as exp:
-        print("Oh no! API error!", exp)
-        return {"text": f"Oh no! API error! {exp}"}
-    duration = f"duration: {(datetime.now() - ts).total_seconds()}sec."
+def clear_states_and_timers(sm: "StateMachine", data: dict):
+    # затираю состояния у всех юзеров текущей группы.. перезаписываю?
+    sm.app.user_states = {
+        user_chat_id: state
+        for user_chat_id, state in sm.app.user_states.items()
+        if user_chat_id.split(":")[1] != data["chat_id"]
+    }
 
-    for question in res:
-        await sm.accessor.execute_query_creation(
-            QuestionModel(
-                question=question.question,
-                answers=question.answers,
-                story=question.story,
-                context=question.context,
-            )
-        )
-        await sm.app.sender.query(
-            "sendMessage",
-            {
-                "text": dict_to_readable_text(question.__dict__),
-                "chat_id": data["chat_id"],
-            },
-        )
-    #
-    return {"text": duration}
+    # надо выключить таймеры
+    for timer in sm.app.timer_schedule:
+        if timer["chat_id"] == data["chat_id"]:
+            timer["executed"] = True
 
 
+# @logger
 async def get_new_questions(sm: "StateMachine", data: dict):
-    try:
-        res = gpt_master.get_question(get_theme(), count=5)
-    except APIConnectionError as exp:
-        print("Oh no! API error!", exp)
-        raise APIConnectionError
+    await sm.app.sender.query(
+        'sendMessage',
+        {
+            'chat_id': data['chat_id'],
+            'text': 'Хорошо, сейчас я сгенерирую несколько новых вопросов на случайную тему.\nТерпение, дружище!'
+        }
+    )
+    await sm.app.sender._send_action(method=None, params={'chat_id': data['chat_id']}, sleep=0)
+    new_questions = await sm.accessor.make_new_questions()
+    return {'text': dict_to_readable_text([q.__dict__ for q in new_questions])}
 
-    questions = []
-    for question in res:
-        try:
-            question_model = await sm.accessor.execute_query_creation(
-                QuestionModel(
-                    question=question.question,
-                    answers=question.answers,
-                    story=question.story,
-                    context=question.context,
-                )
-            )
-            questions.append(question_model)
-        except DBAPIError as exp:
-            print("Error on sqlAlchemy:", exp)
-            continue
-    #
-    questions = [question.to_dataclass() for question in questions]
-    #
-    return questions
 
+# @logger
 async def statistic(sm: "StateMachine", data: dict):
     game = await sm.accessor.get_last_game()
-    game = game.to_serializable()
-    # game = game.to_serializable()
-    # stat = [
-    #     f"Статистика по последней игре от {game['created_at'].split('.')[0]}",
-    #     f"Счет игры: "
-    # ]
-    print(dict_to_readable_text(game))
-    return {'text': dict_to_readable_text(game)}
+    if game:
+        game = game.to_serializable()
+        return {'text': dict_to_readable_text(game)}
+    else:
+        return {'text': 'Похоже в этом чате еще не было ни одной игры!\n\nПора играть!'}
 
 
+# @logger
+async def help(sm: "StateMachine", data: dict):
+    from tgbot.tgbot import HELP_DESCRIPTION
+    #
+    text = '\n'.join(HELP_DESCRIPTION)
+    return {"text": text, 'chat_id': data['chat_id']}
+
+
+# @logger
 async def test(sm: "StateMachine", data: dict):
-    asd = await add_player_to_team(sm, data)
-    return {"text": f"{asd}"}
+    res = 'test'
+    return {"text": res, 'chat_id': data['chat_id']}

@@ -9,6 +9,6 @@ if typing.TYPE_CHECKING:
 
 @pytest.fixture(scope="session")
 async def app():
-    app = await setup_app()
+    app = await setup_app(config_path='config.yml')
     app.test_field = "Yeah!"
     return app
