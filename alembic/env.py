@@ -8,10 +8,12 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 
 import os
+from kts_backend.store.database import db
+from kts_backend.web.config import get_config
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
-from kts_backend.store.database import db
+
 
 """
    Команды для Алембика:
@@ -40,8 +42,15 @@ target_metadata = db.metadata
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
 
-DB_URL = "postgresql+asyncpg://" + os.environ.get("KTS_DB_CREDENTIALS", "USERNAME:PASSWORD@HOST:PORT/DB_NAME")
 
+app_config = get_config()
+DB_URL = f"postgresql+asyncpg://" \
+                    f"{app_config.database.user}:" \
+                    f"{app_config.database.password}@" \
+                    f"{app_config.database.host}:" \
+                    f"{app_config.database.port}/" \
+                    f"{app_config.database.database}"
+# DB_URL = "postgresql+asyncpg://" + os.environ.get("KTS_DB_CREDENTIALS", "USERNAME:PASSWORD@HOST:PORT/DB_NAME")
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.

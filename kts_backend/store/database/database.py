@@ -20,12 +20,18 @@ class Database:
         self._engine: Optional[AsyncEngine] = None
         self._db: Optional[declarative_base] = None
         self.session: Optional[AsyncSession] = None
-        self.DATABASE_URL = "postgresql+asyncpg://" + os.environ.get(
-            "KTS_DB_CREDENTIALS", "USERNAME:PASSWORD@HOST:PORT/DB_NAME"
-        )
+        self.DATABASE_URL = f"postgresql+asyncpg://" \
+                            f"{self.app.config.database.user}:" \
+                            f"{self.app.config.database.password}@" \
+                            f"{self.app.config.database.host}:" \
+                            f"{self.app.config.database.port}/" \
+                            f"{self.app.config.database.database}"
+        # self.DATABASE_URL = "postgresql+asyncpg://" + os.environ.get(
+        #     "KTS_DB_CREDENTIALS", "USERNAME:PASSWORD@HOST:PORT/DB_NAME"
+        # )
+
         self.app.on_startup.append(self.connect)
         self.app.on_cleanup.append(self.disconnect)
-        # print("DATABASE_URL:", self.DATABASE_URL)
 
     async def connect(self, *_: list, **__: dict) -> None:
         self._db = db

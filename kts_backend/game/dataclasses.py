@@ -9,6 +9,7 @@ class QuestionDC:
     question: Optional[str] = ""
     answers: Optional[list[str]] = list
     story: Optional[str] = ""
+    complexity: Optional[int] = 0
     id_db: Optional[int] = None
 
 

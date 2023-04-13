@@ -1,3 +1,4 @@
+import asyncio
 from typing import Optional
 
 from sqlalchemy import select, func, not_, or_, update, delete
@@ -22,9 +23,13 @@ from kts_backend.game.models import (
 )
 
 from sqlalchemy.orm import selectinload, joinedload, subqueryload
+from sqlalchemy.exc import DBAPIError
 
 
 class BotAccessor(BaseAccessor):
+    def __init__(self, app):
+        super().__init__(app)
+
     async def update_game(self):
         pass
 
@@ -144,7 +149,42 @@ class BotAccessor(BaseAccessor):
         )
         async with self.database.session.begin() as session:
             result: ChunkedIteratorResult = await session.execute(query)
-            return result.fetchone()[0]
+            result = result.fetchone()
+            if result:
+                return result[0]
+            else:
+                return None
+
+    #
+    async def set_question_to_db(self, raw_questions):
+        questions = []
+        for question in raw_questions:
+            try:
+                question_model = await self.execute_query_creation(
+                    QuestionModel(
+                        question=question.question,
+                        answers=question.answers,
+                        story=question.story,
+                        context=question.context,
+                        complexity=question.complexity
+                    )
+                )
+                questions.append(question_model)
+            except DBAPIError as exp:
+                print("Error on sqlAlchemy:", exp)
+                continue
+        #
+        questions = [question.to_dataclass() for question in questions]
+        return questions
+
+    #
+    async def make_new_questions(self, **kwargs):
+        # new_questions = gpt_master.get_question(**kwargs)
+        loop = asyncio.get_event_loop()
+        new_questions = await loop.run_in_executor(None, self.app.gtp_master.get_question, kwargs)
+        questions = await self.set_question_to_db(raw_questions=new_questions)
+        #
+        return questions
 
     #
     async def get_questions_from_db__virgin(self, count=1):

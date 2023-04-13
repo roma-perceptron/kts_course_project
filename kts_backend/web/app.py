@@ -1,6 +1,5 @@
 import asyncio
 import pickle
-from typing import Sequence, Callable
 
 from aiohttp.web import (
     Application as AiohttpApplication,
@@ -9,21 +8,28 @@ from aiohttp.web import (
 )
 
 # from pyparsing import Optional    # где это вообще используется или должно?
-from sqlalchemy import select
-
+from chatgpt.chatgpt import MasterOfTheGame
 from kts_backend import __appname__, __version__
+from .config import setup_config
 from .urls import register_urls
 
 from typing import Optional
 from kts_backend.store.database.database import Database
 from kts_backend.store.bot.manager import BotManager
+from kts_backend.admin.manager import AdminManager
 
 from tgbot import setup_sender, setup_poller
-from kts_backend.store import setup_store
 from kts_backend.api.routes import setup_routes
+from kts_backend.web.mw import setup_middlewares
+from kts_backend.store import setup_store
+
+from aiohttp_apispec import setup_aiohttp_apispec
+from aiohttp_session import setup as session_setup
+from aiohttp_session.cookie_storage import EncryptedCookieStorage
 
 
 # __all__ = ("ApiApplication",)
+
 from ..game.models import CurrentParamsModel
 
 
@@ -38,6 +44,9 @@ class Application(AiohttpApplication):
         self.manager = None
         self.updates_queue = None
         self.answers_queue = None
+        self.processor_count = None
+        self.admin_manager: Optional[AdminManager] = None
+        self.gtp_master = None
         #
         self.user_states = {}
         self.current_teams = {}
@@ -90,13 +99,29 @@ class View(AiohttpView):
     def manager(self):
         return self.request.app.manager
 
+    @property
+    def admin_manager(self):
+        return self.request.app.admin_manager
+
 
 app = Application(debug=False)  # debug=True
 
 
-async def setup_app() -> Application:
+async def setup_app(config_path: str, processor_count: int = 1) -> Application:
     print("start creating app..")
+    app.processor_count = processor_count
+
+    #
+    setup_config(app, config_path)
+    #
     setup_routes(app)
+    session_setup(app, EncryptedCookieStorage(app.config.session.key))
+    setup_aiohttp_apispec(
+        app,
+        title="Roma Perceptron: ЧГК + chatGTP tg-Bot",
+        url="/docs/json",
+        swagger_path="/docs",
+    )
 
     # creating database
     app.database = Database(app)
@@ -108,7 +133,15 @@ async def setup_app() -> Application:
     # creating Manager instance
     app.manager = BotManager(app)
 
-    # all coros should start via call app.on_startup in each __init__
+    # prepare chatGTP client
+    app.gtp_master = MasterOfTheGame(config=app.config.openai)
+
+    # creating Admin Manager and first admin
+    app.admin_manager = AdminManager(app)
+
+    # мидлвары..
+    setup_middlewares(app)
+
     print("preparing done:")
 
     #

@@ -1,12 +1,9 @@
 import asyncio
 import datetime
-import json
 import pickle
-import time
 import typing
 from asyncio import Task
 from typing import Optional
-from random import randint
 
 from sqlalchemy import select
 
@@ -25,11 +22,14 @@ class BotManager:
         self.app = app
         self.is_running: bool = False
         self.task: Optional[Task] = None
-        self.accessor: BotAccessor = BotAccessor(app.database)
+        self.accessor: BotAccessor = BotAccessor(self.app)
         self.state_machine: StateMachine = StateMachine(self.app, self.accessor)
         self.timer_is_running: bool = False
         self.timer: Optional[Task] = None
         self.timer_delay: int = 1
+        #
+        self.task_count = app.processor_count
+        self.tasks: Optional[list[Task]] = []
         #
         self.app.on_startup.append(self.start)
         self.app.on_startup.append(self.start_timer)
@@ -59,18 +59,23 @@ class BotManager:
         return update
 
     async def _put_ids_on_top(self, update: dict):
-        update["user_id"] = str(update["message"]["from"]["id"])
-        update["chat_id"] = str(update["message"]["chat"]["id"])
-        user_chat_id = ":".join([update["user_id"], update["chat_id"]])
-        update["user_chat_id"] = user_chat_id
+        try:
+            update["user_id"] = str(update["message"]["from"]["id"])
+            update["chat_id"] = str(update["message"]["chat"]["id"])
+            user_chat_id = ":".join([update["user_id"], update["chat_id"]])
+            update["user_chat_id"] = user_chat_id
+        except Exception as exp:
+            print('\nEXP!')
+            print(exp)
+            print(dict_to_readable_text(update))
+            print('\n\n')
 
     async def _set_user_state(self, update: dict):
         if not update.get("callback", False):
             update["bot_state"] = self.app.user_states.get(
-                update["user_chat_id"], None
+                update.get('user_chat_id', None), None
             )
 
-    #
     async def process_update(self):
         while self.is_running:
             update = await self.app.updates_queue.get()
@@ -93,15 +98,21 @@ class BotManager:
 
     async def start(self, *args, **kwargs):
         self.is_running = True
-        self.task = asyncio.create_task(self.process_update())
+        # self.task = asyncio.create_task(self.process_update())
         #
-        await self.app.updates_queue.join()
+        for _ in range(self.task_count):
+            self.tasks.append(asyncio.create_task(self.process_update()))
+            print(" " * 3, 'теперь task_count manager:', len(self.tasks))
+        #
+        await self.app.updates_queue.join() # ? а не в stop ли?
         print(" " * 3, "app.manager.start - ok")
 
     async def stop(self, *args, **kwargs):
         await self.state_machine.session.close()
         self.is_running = False
-        self.task.cancel()
+        # self.task.cancel()
+        for task in self.tasks:
+            task.cancel()
 
     #
     # timer..
@@ -110,7 +121,7 @@ class BotManager:
             if not timer_task["executed"]:
                 if datetime.datetime.now() >= timer_task["time"]:
                     print(
-                        "timer dzin!!!",
+                        # "timer dzin!!!",
                         datetime.datetime.now(),
                         timer_task["type"],
                         timer_task["time"],
