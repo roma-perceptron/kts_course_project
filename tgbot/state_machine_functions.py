@@ -205,7 +205,7 @@ async def _check_answer(sm: "StateMachine", data: dict, answer: str):
             )
             # win = sm.app.gpt_master.check_answer(game_round["question"], answer)
             loop = asyncio.get_event_loop()
-            win = await loop.run_in_executor(None, sm.app.gtp_master.check_answer, game_round["question"], answer)
+            win = await loop.run_in_executor(None, sm.app.GPT_master.check_answer, game_round["question"], answer)
     #
     if win:
         game_round["score"] = 1

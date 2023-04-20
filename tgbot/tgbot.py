@@ -14,12 +14,12 @@ from tgbot.scheme.state_machine_scheme import BOT_COMMANDS_AND_STATES
 
 SHORT_DESCRIPTION = [
     'Бот для игры в "Что? Где? Когда?"',
-    'Знатоки против chatGTP!',
+    'Знатоки против chatGPT!',
 ]
 TOTAL_DESCRIPTION = [
     'KTS COURSE PROJECT BOT',
     '',
-    'Игра "Что? Где? Когда?", но вместо телезрителей - chatGTP. Нейросеть не только придумывает вопросы, но и проверяет ответы знатоков.',
+    'Игра "Что? Где? Когда?", но вместо телезрителей - chatGPT. Нейросеть не только придумывает вопросы, но и проверяет ответы знатоков.',
     '',
     'Играть можно как в одиночку, так командой. Для этого добавьте бота в свою группу.',
     '',
@@ -31,7 +31,7 @@ TOTAL_DESCRIPTION = [
 HELP_DESCRIPTION = [
     'KTS COURSE PROJECT BOT',
     '',
-    'Игра "Что? Где? Когда?", но вместо телезрителей - chatGTP. Нейросеть не только придумывает вопросы, но и проверяет ответы знатоков.',
+    'Игра "Что? Где? Когда?", но вместо телезрителей - chatGPT. Нейросеть не только придумывает вопросы, но и проверяет ответы знатоков.',
     '',
     'Играть можно как в одиночку, так командой. Для этого добавьте бота в свою группу.',
     '',
@@ -95,6 +95,8 @@ class TGBot:
             await self._send_action(method, {"chat_id": params["chat_id"]})
         if params.get('text', False) and len(params['text']) > 4096:
             params['text'] = params['text'][:4000] + '..\n\n..message was truncated'
+        if params.get('text', False):
+            params['text'] = params['text'].replace('\n', '%0A')    # вот уж блин!
         query_link = self.build_query(method, params)
         async with self.session.get(query_link) as resp:
             data = await resp.json()
