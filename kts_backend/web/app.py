@@ -32,7 +32,6 @@ from aiohttp_session.cookie_storage import EncryptedCookieStorage
 
 from ..game.models import CurrentParamsModel
 
-
 class Application(AiohttpApplication):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -46,7 +45,7 @@ class Application(AiohttpApplication):
         self.answers_queue = None
         self.processor_count = None
         self.admin_manager: Optional[AdminManager] = None
-        self.gtp_master = None
+        self.GPT_master = None
         #
         self.user_states = {}
         self.current_teams = {}
@@ -104,7 +103,7 @@ class View(AiohttpView):
         return self.request.app.admin_manager
 
 
-app = Application(debug=False)  # debug=True
+app = Application(debug=False)     # debug=True
 
 
 async def setup_app(config_path: str, processor_count: int = 1) -> Application:
@@ -118,7 +117,7 @@ async def setup_app(config_path: str, processor_count: int = 1) -> Application:
     session_setup(app, EncryptedCookieStorage(app.config.session.key))
     setup_aiohttp_apispec(
         app,
-        title="Roma Perceptron: ЧГК + chatGTP tg-Bot",
+        title="Roma Perceptron: ЧГК + chatGPT tg-Bot",
         url="/docs/json",
         swagger_path="/docs",
     )
@@ -133,8 +132,8 @@ async def setup_app(config_path: str, processor_count: int = 1) -> Application:
     # creating Manager instance
     app.manager = BotManager(app)
 
-    # prepare chatGTP client
-    app.gtp_master = MasterOfTheGame(config=app.config.openai)
+    # prepare chatGPT client
+    app.GPT_master = MasterOfTheGame(config=app.config.openai)
 
     # creating Admin Manager and first admin
     app.admin_manager = AdminManager(app)

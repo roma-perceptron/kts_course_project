@@ -1,4 +1,5 @@
 import json
+import aiohttp_jinja2
 
 from aiohttp.web_exceptions import HTTPForbidden
 from aiohttp_session import new_session
@@ -93,3 +94,11 @@ class MakeQuestions(View):
         questions = [question.__dict__ for question in questions_dc]
         #
         return json_response(data=questions)
+
+
+class IndexView(View):
+    async def get(self):
+        print('ok, i\'m here:', self.__class__.__name__)
+        context = {}
+        response = aiohttp_jinja2.render_template('index.html', self.request, context)
+        return response

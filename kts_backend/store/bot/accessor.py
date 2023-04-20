@@ -181,7 +181,7 @@ class BotAccessor(BaseAccessor):
     async def make_new_questions(self, **kwargs):
         # new_questions = gpt_master.get_question(**kwargs)
         loop = asyncio.get_event_loop()
-        new_questions = await loop.run_in_executor(None, self.app.gtp_master.get_question, kwargs)
+        new_questions = await loop.run_in_executor(None, self.app.GPT_master.get_question, kwargs)
         questions = await self.set_question_to_db(raw_questions=new_questions)
         #
         return questions
